@@ -1,39 +1,27 @@
-from __future__ import absolute_import
-from __future__ import division, print_function, unicode_literals
-
-import keyboard
 import random
-import time
 from requests_html import HTMLSession, HTML
 
 from sumy.parsers.html import HtmlParser
-from sumy.parsers.plaintext import PlaintextParser
 from sumy.nlp.tokenizers import Tokenizer
 from sumy.summarizers.lsa import LsaSummarizer as Summarizer
 from sumy.nlp.stemmers import Stemmer
 from sumy.utils import get_stop_words
 
-start_url = "https://www.runoob.com/"
-LANGUAGE = "chinese"
-SENTENCES_COUNT = 50
+from docx import Document
+from docx.document import Document as Doc
+from docx.enum.style import WD_STYLE_TYPE
+from docx.enum.table import WD_ROW_HEIGHT_RULE
+from docx.shared import Pt
 
-page_num = 78
+generate_page_num = 10
 year = 2021
 month = 9
 date = 27
 max_date = 30
 
-
-def delete_and_write(content):
-    text = str(content)
-    for i in range(len(text)):
-        keyboard.press_and_release("backspace")
-    keyboard.write(text)
-
-
-def move(direction, distance):
-    for i in range(distance):
-        keyboard.press_and_release(direction)
+start_url = "https://www.runoob.com/"
+LANGUAGE = "chinese"
+SENTENCES_COUNT = 50
 
 
 def refresh_datetime():
@@ -54,33 +42,30 @@ def generate_paragraph(url):
     summarizer = Summarizer(stemmer)
     summarizer.stop_words = get_stop_words(LANGUAGE)
 
+    paragraph_list = []
     build_str = "\t"
     for sentence in summarizer(parser.document, SENTENCES_COUNT):
         sentence = str(sentence).replace("尝试一下 » ", "")
         if random.random() < 0.5:
-            build_str += "\n\t"
+            paragraph_list.append(build_str)
+            build_str = "\t"
         build_str += sentence
-    return build_str
+    return paragraph_list
 
 
-def get_second_url_list(first_page_url):
-    url = first_page_url
-    url_list = [url]
+def get_next_url(last_page_url):
     session = HTMLSession()
-    while True:
-        r = session.get(url)
-        html = HTML(html=r.text)
-        next_link = html.find(".next-design-link", first=True)
-        if len(next_link.absolute_links) == 0:
-            break
-        print(next_link.text, next_link.absolute_links)
-        for next_url in next_link.absolute_links:
-            url = next_url
-            url_list.append(url)
-    return url_list
+    r = session.get(last_page_url)
+    html = HTML(html=r.text)
+    next_link = html.find(".next-design-link", first=True)
+    if len(next_link.absolute_links) == 0:
+        return None
+    print(next_link.text, next_link.absolute_links)
+    for next_url in next_link.absolute_links:
+        return next_url
 
 
-def get_first_url_set(home_url):
+def get_topic_url_set(home_url):
     url_set = set()
     session = HTMLSession()
     r = session.get(home_url)
@@ -93,34 +78,45 @@ def get_first_url_set(home_url):
 
 
 if __name__ == '__main__':
-    first_url_set = get_first_url_set(start_url)
-    second_url_list = get_second_url_list(first_url_set.pop())
-    i = 0
-    print("5秒后开始写入……")
-    time.sleep(5)
-    for i in range(page_num):
-        # input datetime
-        delete_and_write(year)
-        move("right", 4)
-        delete_and_write(month)
-        move("right", 4)
-        delete_and_write(date)
-        move("down", 1)
-        time.sleep(0.2)
+    # init doc
+    doc: Doc
+    doc = Document()
+    styles = doc.styles
+    style = styles.add_style("表头", WD_STYLE_TYPE.PARAGRAPH)
+    style.hidden = False
+    style.quick_style = True
+    style.priority = 1
 
-        # input text
-        text = ""
-        while len(text) < 400:
-            if i == len(second_url_list):
-                # get new second_url_list and reset i
-                second_url_list = get_second_url_list(first_url_set.pop())
-                i = 0
-            text += generate_paragraph(second_url_list[i])
-            i += 1
-        keyboard.write(text)
-        time.sleep(0.2)
+    print("正在爬取网页：")
+    topic_url_set = get_topic_url_set(start_url)
+    page_url = get_next_url(topic_url_set.pop())
+    for i in range(generate_page_num):
+        # input datetime
+        doc.add_paragraph("实习记录                                                     "
+                          + str(year) + "年"
+                          + str(month) + "月"
+                          + str(date) + "日", style="表头")
+        refresh_datetime()
+
+        # input table text
+        table = doc.add_table(1, 1, "TableGrid")
+        table.rows[0].height_rule = WD_ROW_HEIGHT_RULE.EXACTLY
+        table.rows[0].height = Pt(600)
+        text_len = 0
+        while text_len < 400:
+            while page_url is None:
+                # find another topic
+                page_url = get_next_url(topic_url_set.pop())
+            for paragraph in generate_paragraph(page_url):
+                text_len += len(paragraph)
+                table.cell(0, 0).add_paragraph(paragraph)
+                if text_len > 600:
+                    break
+            # goto next webpage
+            page_url = get_next_url(page_url)
+            if text_len > 600:
+                break
 
         # move to next page
-        move("down", 4)
-        move("left", 10)
-        time.sleep(0.2)
+        doc.add_page_break()
+    doc.save("real internship report.docx")
