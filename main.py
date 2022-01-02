@@ -12,8 +12,9 @@ from docx.document import Document as Doc
 from docx.enum.style import WD_STYLE_TYPE
 from docx.enum.table import WD_ROW_HEIGHT_RULE
 from docx.shared import Pt
+from docx.oxml.ns import qn
 
-generate_page_num = 10
+generate_page_num = 5
 year = 2021
 month = 9
 date = 27
@@ -92,10 +93,14 @@ if __name__ == '__main__':
     page_url = get_next_url(topic_url_set.pop())
     for i in range(generate_page_num):
         # input datetime
-        doc.add_paragraph("实习记录                                                     "
-                          + str(year) + "年"
-                          + str(month) + "月"
-                          + str(date) + "日", style="表头")
+        run = doc.add_paragraph(style="表头").add_run()
+        font = run.font
+        font.name = "宋体"
+        run._element.rPr.rFonts.set(qn('w:eastAsia'), '宋体')
+        run.add_text("实习记录                                                     "
+                     + str(year) + "年"
+                     + str(month) + "月"
+                     + str(date) + "日")
         refresh_datetime()
 
         # input table text
