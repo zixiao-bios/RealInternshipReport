@@ -24,6 +24,14 @@ start_url = "https://www.runoob.com/"
 LANGUAGE = "chinese"
 SENTENCES_COUNT = 50
 
+str_replace = [
+    ["您", ""],
+    ["你", ""],
+    ["我们", "我"],
+    ["教程", "笔记"],
+    ["尝试一下 » ", ""],
+]
+
 
 def refresh_datetime():
     global date, month, max_date
@@ -46,10 +54,9 @@ def generate_text_list(url):
     paragraph_list = []
     build_str = "\t"
     for sentence in summarizer(parser.document, SENTENCES_COUNT):
-        sentence = str(sentence).replace("尝试一下 » ", "")
-        build_str += sentence
+        build_str += str(sentence)
         if random.random() < 0.5:
-            paragraph_list.append(build_str)
+            paragraph_list.append(str_processing(build_str))
             build_str = "\t"
     return paragraph_list
 
@@ -76,6 +83,12 @@ def get_topic_url_set(home_url):
         for url in item.absolute_links:
             url_set.add(url)
     return url_set
+
+
+def str_processing(s):
+    for each in str_replace:
+        s = s.replace(each[0], each[1])
+    return s
 
 
 if __name__ == '__main__':
