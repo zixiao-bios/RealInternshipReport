@@ -33,7 +33,7 @@ def refresh_datetime():
         month += 1
 
 
-def generate_paragraph(url):
+def generate_text_list(url):
     parser = HtmlParser.from_url(url, Tokenizer(LANGUAGE))
     # or for plain text files
     # parser = PlaintextParser.from_file("document.txt", Tokenizer(LANGUAGE))
@@ -47,10 +47,10 @@ def generate_paragraph(url):
     build_str = "\t"
     for sentence in summarizer(parser.document, SENTENCES_COUNT):
         sentence = str(sentence).replace("尝试一下 » ", "")
+        build_str += sentence
         if random.random() < 0.5:
             paragraph_list.append(build_str)
             build_str = "\t"
-        build_str += sentence
     return paragraph_list
 
 
@@ -93,10 +93,18 @@ if __name__ == '__main__':
     page_url = get_next_url(topic_url_set.pop())
     for i in range(generate_page_num):
         # input datetime
-        run = doc.add_paragraph(style="表头").add_run()
+        text = doc.add_paragraph(style="表头")
+        paragraph_format = text.paragraph_format
+        paragraph_format.space_before = 0
+        paragraph_format.space_after = 0
+        paragraph_format.line_spacing = 1
+
+        run = text.add_run()
         font = run.font
         font.name = "宋体"
+        font.size = Pt(11)
         run._element.rPr.rFonts.set(qn('w:eastAsia'), '宋体')
+
         run.add_text("实习记录                                                     "
                      + str(year) + "年"
                      + str(month) + "月"
@@ -112,9 +120,22 @@ if __name__ == '__main__':
             while page_url is None:
                 # find another topic
                 page_url = get_next_url(topic_url_set.pop())
-            for paragraph in generate_paragraph(page_url):
-                text_len += len(paragraph)
-                table.cell(0, 0).add_paragraph(paragraph)
+            for text in generate_text_list(page_url):
+                text_len += len(text)
+
+                paragraph = table.cell(0, 0).add_paragraph()
+                paragraph_format = paragraph.paragraph_format
+                paragraph_format.space_before = 0
+                paragraph_format.space_after = 0
+                paragraph_format.line_spacing = 1.5
+
+                run = paragraph.add_run()
+                font = run.font
+                font.name = "宋体"
+                font.size = Pt(12)
+                run._element.rPr.rFonts.set(qn('w:eastAsia'), '宋体')
+                run.add_text(text)
+
                 if text_len > 600:
                     break
             # goto next webpage
